@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Mon, 16 Nov 2026 04:38:16 +0000
+Subject: [PATCH] kconfig: Add olddefconfig as an alias of oldnoconfig
+
+Linux 3.7 renamed oldnoconfig to olddefconfig (it sets new symbols to
+their defaults, not to n). Newer build systems call olddefconfig, so
+accept it here too.
+---
+ scripts/kconfig/Makefile | 4 ++--
+ scripts/kconfig/conf.c   | 1 +
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/scripts/kconfig/Makefile b/scripts/kconfig/Makefile
+index a4f9c20b..f9f3ad32 100644
+--- a/scripts/kconfig/Makefile
++++ b/scripts/kconfig/Makefile
+@@ -79,9 +79,9 @@ PHONY += allnoconfig allyesconfig allmodconfig alldefconfig randconfig
+ allnoconfig allyesconfig allmodconfig alldefconfig randconfig: $(obj)/conf
+ 	$< --$@ $(Kconfig)
+ 
+-PHONY += listnewconfig oldnoconfig savedefconfig defconfig
++PHONY += listnewconfig oldnoconfig olddefconfig savedefconfig defconfig
+ 
+-listnewconfig oldnoconfig: $(obj)/conf
++listnewconfig oldnoconfig olddefconfig: $(obj)/conf
+ 	$< --$@ $(Kconfig)
+ 
+ savedefconfig: $(obj)/conf
+diff --git a/scripts/kconfig/conf.c b/scripts/kconfig/conf.c
+index f208f900..8128ded8 100644
+--- a/scripts/kconfig/conf.c
++++ b/scripts/kconfig/conf.c
+@@ -455,6 +455,7 @@ static struct option long_opts[] = {
+ 	{"randconfig",      no_argument,       NULL, randconfig},
+ 	{"listnewconfig",   no_argument,       NULL, listnewconfig},
+ 	{"oldnoconfig",     no_argument,       NULL, oldnoconfig},
++	{"olddefconfig",    no_argument,       NULL, oldnoconfig},
+ 	{NULL, 0, NULL, 0}
+ };
+ 

@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Mon, 16 Nov 2026 04:42:31 +0000
+Subject: [PATCH] scripts/xz_wrap.sh: Skip the BCJ filter when xz lacks it
+
+The xz from Android's prebuilts is built without the BCJ filters and
+rejects --arm with "Unsupported filter chain". The filter only helps
+compression and the in-kernel decompressor handles plain LZMA2, so drop
+it when the host xz can't use it.
+---
+ scripts/xz_wrap.sh | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/scripts/xz_wrap.sh b/scripts/xz_wrap.sh
+index 7a2d372f..3910c816 100755
+--- a/scripts/xz_wrap.sh
++++ b/scripts/xz_wrap.sh
+@@ -20,4 +20,11 @@ case $SRCARCH in
+ 	sparc)          BCJ=--sparc ;;
+ esac
+ 
++# Some xz builds (e.g. the Android prebuilt) lack the BCJ filters. The
++# filter is optional for the in-kernel decompressor, so only use it when
++# this xz supports it.
++if [ -n "$BCJ" ] && ! echo | xz --check=crc32 $BCJ --lzma2=dict=1MiB >/dev/null 2>&1; then
++	BCJ=
++fi
++
+ exec xz --check=crc32 $BCJ --lzma2=$LZMA2OPTS,dict=32MiB

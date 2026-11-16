@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Mon, 16 Nov 2026 12:53:01 +0000
+Subject: [PATCH] core: Keep the OTA install helpers without a recovery image
+
+They were only copied to INSTALL/ together with the recovery files, so
+non-A/B OTAs of TARGET_NO_RECOVERY devices lacked install/ and aborted
+at set_metadata_recursive.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
+Change-Id: Ie4a659f15e55327f84012b5c9c529aeabe4c964a
+---
+ core/Makefile | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/core/Makefile b/core/Makefile
+index db8937eef5..42f2ed9de3 100644
+--- a/core/Makefile
++++ b/core/Makefile
+@@ -6325,7 +6325,8 @@ endif
+ 
+ $(BUILT_TARGET_FILES_DIR): $(updater_dep)
+ ifeq ($(TARGET_NO_RECOVERY),true)
+-$(BUILT_TARGET_FILES_DIR): $(TARGET_RECOVERY_FSTAB)
++$(BUILT_TARGET_FILES_DIR): $(TARGET_RECOVERY_FSTAB) \
++    $(filter $(PRODUCT_OUT)/install/%,$(ALL_DEFAULT_INSTALLED_MODULES))
+ endif
+ 
+ # If we are using recovery as boot, output recovery files to BOOT/.
+@@ -6900,6 +6901,10 @@ ifneq ($(TARGET_RECOVERY_FSTAB),)
+ 	@# Without a recovery image, keep the fstab for non-A/B OTA packages.
+ 	$(hide) cp $(TARGET_RECOVERY_FSTAB) $(zip_root)/META/recovery.fstab
+ endif
++	@# The OTA install helpers (backuptool) are copied with the recovery
++	@# files otherwise.
++	$(hide) $(call package_files-copy-root, \
++	    $(PRODUCT_OUT)/install,$(zip_root)/INSTALL)
+ endif
+ ifneq ($(INSTALLED_FASTBOOT_INFO_TARGET),)
+ 	$(hide) cp $(INSTALLED_FASTBOOT_INFO_TARGET) $(zip_root)/META/fastboot-info.txt

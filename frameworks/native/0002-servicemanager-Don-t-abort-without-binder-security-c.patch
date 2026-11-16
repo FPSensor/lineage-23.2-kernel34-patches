@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Mon, 16 Nov 2026 13:48:50 +0000
+Subject: [PATCH] servicemanager: Don't abort without binder security contexts
+
+Kernels older than 4.20 don't support TXN_SECURITY_CTX, so every
+incoming transaction lacked a context and servicemanager aborted, taking
+vold and the whole boot down. Fall back to getpidcon() there.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
+Change-Id: Ie8880794f9f6882d54c040e78ac1df14de38d5f8
+---
+ cmds/servicemanager/Access.cpp | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/cmds/servicemanager/Access.cpp b/cmds/servicemanager/Access.cpp
+index 6e2abf65e2..8ba7673ae9 100644
+--- a/cmds/servicemanager/Access.cpp
++++ b/cmds/servicemanager/Access.cpp
+@@ -34,9 +34,8 @@ constexpr bool kIsVendor = false;
+ 
+ #ifdef __ANDROID__
+ static std::string getPidcon(pid_t pid) {
+-    CHECK_EQ(nullptr, IPCThreadState::self()->getServingStackPointer())
+-            << "Did not get context from PID " << pid
+-            << ". We should always get contexts from other processes.";
++    // Kernels without binder security contexts (Linux < 4.20, no
++    // TXN_SECURITY_CTX) never send them: fall back to getpidcon() there.
+ 
+     char* lookup = nullptr;
+     if (getpidcon(pid, &lookup) < 0) {

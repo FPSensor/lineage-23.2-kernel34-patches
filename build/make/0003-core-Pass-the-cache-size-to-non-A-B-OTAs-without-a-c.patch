@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Mon, 16 Nov 2026 07:52:16 +0000
+Subject: [PATCH] core: Pass the cache size to non-A/B OTAs without a cache
+ image
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
+Change-Id: I67925cffce0caf1cd7f8f7921be8124933034ab0
+---
+ core/Makefile | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/core/Makefile b/core/Makefile
+index 44a31da1af..db8937eef5 100644
+--- a/core/Makefile
++++ b/core/Makefile
+@@ -6183,6 +6183,12 @@ endif
+ ifeq ($(TARGET_OTA_ALLOW_NON_AB),true)
+ 	$(hide) echo "allow_non_ab=true" >> $@
+ endif
++ifndef BUILDING_CACHE_IMAGE
++ifdef BOARD_CACHEIMAGE_PARTITION_SIZE
++	@# Non-A/B OTAs size their transfers on the cache partition.
++	$(hide) echo "cache_size=$(BOARD_CACHEIMAGE_PARTITION_SIZE)" >> $@
++endif
++endif
+ ifeq ($(BOARD_NON_AB_OTA_DISABLE_COMPRESSION),true)
+ 	$(hide) echo "board_non_ab_ota_disable_compression=true" >> $@
+ endif

@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Mon, 16 Nov 2026 04:41:02 +0000
+Subject: [PATCH] scripts/dtc: Declare yylloc as extern in the lexer
+
+gcc 10+ and lld default to -fno-common, so the lexer's tentative
+definition of yylloc clashes with the parser's and the dtc host build
+fails with a duplicate symbol. Keep a single definition in the parser
+(same idea as upstream e33a814e772c, which could drop the line because
+newer dtc lexers already get the declaration from the parser header).
+---
+ scripts/dtc/dtc-lexer.l             | 2 +-
+ scripts/dtc/dtc-lexer.lex.c_shipped | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/scripts/dtc/dtc-lexer.l b/scripts/dtc/dtc-lexer.l
+index 254d5af8..63da4550 100644
+--- a/scripts/dtc/dtc-lexer.l
++++ b/scripts/dtc/dtc-lexer.l
+@@ -39,7 +39,7 @@ LINECOMMENT	"//".*\n
+ #include "srcpos.h"
+ #include "dtc-parser.tab.h"
+ 
+-YYLTYPE yylloc;
++extern YYLTYPE yylloc;
+ 
+ /* CAUTION: this will stop working if we ever use yyless() or yyunput() */
+ #define	YY_USER_ACTION \
+diff --git a/scripts/dtc/dtc-lexer.lex.c_shipped b/scripts/dtc/dtc-lexer.lex.c_shipped
+index a6c5fcdf..36ca0628 100644
+--- a/scripts/dtc/dtc-lexer.lex.c_shipped
++++ b/scripts/dtc/dtc-lexer.lex.c_shipped
+@@ -637,7 +637,7 @@ char *yytext;
+ #include "srcpos.h"
+ #include "dtc-parser.tab.h"
+ 
+-YYLTYPE yylloc;
++extern YYLTYPE yylloc;
+ 
+ /* CAUTION: this will stop working if we ever use yyless() or yyunput() */
+ #define	YY_USER_ACTION \

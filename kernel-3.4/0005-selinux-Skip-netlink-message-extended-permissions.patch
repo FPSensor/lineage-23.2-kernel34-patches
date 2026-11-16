@@ -1,0 +1,56 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Mon, 16 Nov 2026 13:41:08 +0000
+Subject: [PATCH] selinux: Skip netlink message extended permissions
+
+Android 15+ policies carry nlmsg allowx rules (AVTAB_XPERMS_NLMSG, 3).
+This kernel took the unknown xperms type for an Android M policy,
+switched to its compatibility parsing and failed to load the policy
+with 'avtab: invalid type or class'. Parse them normally and drop them;
+the base nlmsg_* permissions keep applying.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
+---
+ security/selinux/ss/avtab.c | 8 ++++++++
+ security/selinux/ss/avtab.h | 1 +
+ 2 files changed, 9 insertions(+)
+
+diff --git a/security/selinux/ss/avtab.c b/security/selinux/ss/avtab.c
+index 640c16b9..39e5a5ff 100644
+--- a/security/selinux/ss/avtab.c
++++ b/security/selinux/ss/avtab.c
+@@ -516,6 +516,7 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
+ 		if (avtab_android_m_compat ||
+ 			    ((xperms.specified != AVTAB_XPERMS_IOCTLFUNCTION) &&
+ 			    (xperms.specified != AVTAB_XPERMS_IOCTLDRIVER) &&
++			    (xperms.specified != AVTAB_XPERMS_NLMSG) &&
+ 			    (vers == POLICYDB_VERSION_XPERMS_IOCTL))) {
+ 			xperms.driver = xperms.specified;
+ 			if (android_m_compat_optype)
+@@ -537,6 +538,13 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
+ 		}
+ 		for (i = 0; i < ARRAY_SIZE(xperms.perms.p); i++)
+ 			xperms.perms.p[i] = le32_to_cpu(buf32[i]);
++		/*
++		 * Netlink message extended permissions (Linux 6.13) aren't
++		 * supported here: skip the rule, the base nlmsg_* permissions
++		 * still apply as they always did.
++		 */
++		if (xperms.specified == AVTAB_XPERMS_NLMSG)
++			return 0;
+ 		datum.u.xperms = &xperms;
+ 	} else {
+ 		rc = next_entry(buf32, fp, sizeof(u32));
+diff --git a/security/selinux/ss/avtab.h b/security/selinux/ss/avtab.h
+index 8133523c..dc9b024f 100644
+--- a/security/selinux/ss/avtab.h
++++ b/security/selinux/ss/avtab.h
+@@ -57,6 +57,7 @@ struct avtab_extended_perms {
+ /* These are not flags. All 256 values may be used */
+ #define AVTAB_XPERMS_IOCTLFUNCTION	0x01
+ #define AVTAB_XPERMS_IOCTLDRIVER	0x02
++#define AVTAB_XPERMS_NLMSG		0x03
+ 	/* extension of the avtab_key specified */
+ 	u8 specified; /* ioctl, netfilter, ... */
+ 	/*

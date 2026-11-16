@@ -1,0 +1,67 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Mon, 16 Nov 2026 12:47:45 +0000
+Subject: [PATCH] libc: arc4random: Fall back to pid fork detection without
+ MADV_WIPEONFORK
+
+MADV_WIPEONFORK needs Linux 4.14. On older kernels madvise() returns
+EINVAL and every process using arc4random aborted. Detect forks by pid
+there instead, as OpenBSD's arc4random_linux.h does.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
+Change-Id: Id9cb3cb81c5ab904e3796daaf0cbe61ac8c3c13d
+---
+ .../android/include/arc4random.h              | 24 +++++++++++++++++--
+ 1 file changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/libc/upstream-openbsd/android/include/arc4random.h b/libc/upstream-openbsd/android/include/arc4random.h
+index 1940398ba..151510a68 100644
+--- a/libc/upstream-openbsd/android/include/arc4random.h
++++ b/libc/upstream-openbsd/android/include/arc4random.h
+@@ -21,6 +21,10 @@
+ #include <pthread.h>
+ #include <sys/mman.h>
+ #include <sys/prctl.h>
++#include <errno.h>
++#include <stdbool.h>
++#include <string.h>
++#include <unistd.h>
+ 
+ #include <async_safe/log.h>
+ 
+@@ -41,8 +45,20 @@ static inline void _getentropy_fail(void) {
+   async_safe_fatal("getentropy failed: %m");
+ }
+ 
++// Set when the kernel lacks MADV_WIPEONFORK (Linux < 4.14).
++static bool _rs_no_wipeonfork;
++
+ static inline void _rs_forkdetect(void) {
+-  // Not needed thanks to the MADV_WIPEONFORK below.
++  // Not needed when MADV_WIPEONFORK works. Otherwise detect forks like
++  // OpenBSD's arc4random_linux.h: a new pid means a child, which must not
++  // reuse the parent's state, so drop it and make the next call stir.
++  if (!_rs_no_wipeonfork) return;
++  static pid_t _rs_pid = 0;
++  pid_t pid = getpid();
++  if (_rs_pid != pid) {
++    _rs_pid = pid;
++    if (rs) memset(rs, 0, sizeof(*rs));
++  }
+ }
+ 
+ static inline int _rs_allocate(struct _rs** rsp, struct _rsx** rsxp) {
+@@ -61,7 +77,11 @@ static inline int _rs_allocate(struct _rs** rsp, struct _rsx** rsxp) {
+ 
+   // Equivalent to OpenBSD's minherit(MAP_INHERIT_ZERO).
+   if (madvise(p, size, MADV_WIPEONFORK) == -1) {
+-    async_safe_fatal("arc4random data MADV_WIPEONFORK failed: %m");
++    if (errno != EINVAL) {
++      async_safe_fatal("arc4random data MADV_WIPEONFORK failed: %m");
++    }
++    // Old kernel: fall back to pid based fork detection.
++    _rs_no_wipeonfork = true;
+   }
+ 
+   // Give the allocation a name to make tombstones more intelligible.

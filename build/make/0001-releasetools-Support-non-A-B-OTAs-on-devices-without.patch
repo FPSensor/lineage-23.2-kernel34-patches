@@ -1,0 +1,71 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Mon, 16 Nov 2026 07:40:57 +0000
+Subject: [PATCH] releasetools: Support non-A/B OTAs on devices without
+ recovery
+
+Non-A/B OTA packages need the recovery fstab to map partitions to block
+devices, but it only reached the target files through the recovery
+image. With TARGET_NO_RECOVERY, store TARGET_RECOVERY_FSTAB as
+META/recovery.fstab, load it from there, and build the OTA package.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
+Change-Id: I6ebd63a9d7c2c2db16f0c6a4699ccbff04a5e0b7
+---
+ core/Makefile                | 11 ++++++++++-
+ tools/releasetools/common.py |  5 +++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/core/Makefile b/core/Makefile
+index b8c418940c..44a31da1af 100644
+--- a/core/Makefile
++++ b/core/Makefile
+@@ -5800,7 +5800,7 @@ else
+         build_ota_package := false
+       endif
+     endif # INSTALLED_BOOTIMAGE_TARGET == ""
+-    ifeq ($(recovery_fstab),)
++    ifeq ($(recovery_fstab)$(if $(filter true,$(TARGET_NO_RECOVERY)),$(TARGET_RECOVERY_FSTAB)),)
+       ifeq ($(filter $(TARGET_RECOVERY_ROOT_OUT)/system/etc/recovery.fstab,$(INTERNAL_RECOVERYIMAGE_FILES)),)
+         build_ota_package := false
+       endif
+@@ -6318,6 +6318,9 @@ updater_dep += $(built_ota_tools)
+ endif
+ 
+ $(BUILT_TARGET_FILES_DIR): $(updater_dep)
++ifeq ($(TARGET_NO_RECOVERY),true)
++$(BUILT_TARGET_FILES_DIR): $(TARGET_RECOVERY_FSTAB)
++endif
+ 
+ # If we are using recovery as boot, output recovery files to BOOT/.
+ # If we are moving recovery resources to vendor_boot, output recovery files to VENDOR_BOOT/.
+@@ -6886,6 +6889,12 @@ endif
+ 	$(hide) echo "$(PRODUCT_OTA_PUBLIC_KEYS)" > $(zip_root)/META/otakeys.txt
+ 	$(hide) cp $(SELINUX_FC) $(zip_root)/META/file_contexts.bin
+ 	$(hide) cp $(INSTALLED_MISC_INFO_TARGET) $(zip_root)/META/misc_info.txt
++ifeq ($(TARGET_NO_RECOVERY),true)
++ifneq ($(TARGET_RECOVERY_FSTAB),)
++	@# Without a recovery image, keep the fstab for non-A/B OTA packages.
++	$(hide) cp $(TARGET_RECOVERY_FSTAB) $(zip_root)/META/recovery.fstab
++endif
++endif
+ ifneq ($(INSTALLED_FASTBOOT_INFO_TARGET),)
+ 	$(hide) cp $(INSTALLED_FASTBOOT_INFO_TARGET) $(zip_root)/META/fastboot-info.txt
+ endif
+diff --git a/tools/releasetools/common.py b/tools/releasetools/common.py
+index 3a49da7d7e..53eaad2593 100644
+--- a/tools/releasetools/common.py
++++ b/tools/releasetools/common.py
+@@ -1282,6 +1282,11 @@ def _FindAndLoadRecoveryFstab(info_dict, input_file, read_helper):
+     return LoadRecoveryFSTab(
+         read_helper, info_dict['fstab_version'], recovery_fstab_path)
+ 
++  # Devices without a recovery image keep it in META for non-A/B OTAs.
++  if DoesInputFileContain(input_file, 'META/recovery.fstab'):
++    return LoadRecoveryFSTab(
++        read_helper, info_dict['fstab_version'], 'META/recovery.fstab')
++
+   return None
+ 
+ 

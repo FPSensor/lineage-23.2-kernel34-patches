@@ -1,0 +1,52 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Mon, 16 Nov 2026 14:24:56 +0000
+Subject: [PATCH] libc: Fall back to renameat() without renameat2()
+
+rename() and renameat() are built on renameat2(), which needs Linux
+3.15. On older kernels every rename failed with ENOSYS, breaking
+derive_classpath (and so zygote), installd and vold. Without flags,
+renameat() does the same.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
+Change-Id: Ie3ec9f56d7adc9b3e19aabb200f8550a9dc062bc
+---
+ libc/bionic/rename.cpp | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/libc/bionic/rename.cpp b/libc/bionic/rename.cpp
+index 89786f7a0..c6a0dec3a 100644
+--- a/libc/bionic/rename.cpp
++++ b/libc/bionic/rename.cpp
+@@ -26,13 +26,28 @@
+  * SUCH DAMAGE.
+  */
+ 
++#include <unistd.h>
++#include <sys/syscall.h>
++#include <errno.h>
+ #include <fcntl.h>
+ #include <stdio.h>
+ 
++// Linux < 3.15 has no renameat2(); without flags, renameat() is the same.
++static int renameat2_compat(int old_dir_fd, const char* old_path, int new_dir_fd,
++                            const char* new_path) {
++  int saved_errno = errno;
++  int result = renameat2(old_dir_fd, old_path, new_dir_fd, new_path, 0);
++  if (result == -1 && errno == ENOSYS) {
++    errno = saved_errno;
++    result = syscall(__NR_renameat, old_dir_fd, old_path, new_dir_fd, new_path);
++  }
++  return result;
++}
++
+ int rename(const char* old_path, const char* new_path) {
+-  return renameat2(AT_FDCWD, old_path, AT_FDCWD, new_path, 0);
++  return renameat2_compat(AT_FDCWD, old_path, AT_FDCWD, new_path);
+ }
+ 
+ int renameat(int old_dir_fd, const char* old_path, int new_dir_fd, const char* new_path) {
+-  return renameat2(old_dir_fd, old_path, new_dir_fd, new_path, 0);
++  return renameat2_compat(old_dir_fd, old_path, new_dir_fd, new_path);
+ }

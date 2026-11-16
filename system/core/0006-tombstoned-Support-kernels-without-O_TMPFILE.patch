@@ -1,0 +1,68 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Mon, 16 Nov 2026 14:24:56 +0000
+Subject: [PATCH] tombstoned: Support kernels without O_TMPFILE
+
+Linux < 3.11 has no O_TMPFILE, so tombstoned aborted on every crash. Use
+a named temporary file there and rename it into place.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
+Change-Id: If61c459a2544d2a41831bbb6fe378ec1ab71f280
+---
+ debuggerd/tombstoned/tombstoned.cpp | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)
+
+diff --git a/debuggerd/tombstoned/tombstoned.cpp b/debuggerd/tombstoned/tombstoned.cpp
+index 1c7cfef51..0d2463fc9 100644
+--- a/debuggerd/tombstoned/tombstoned.cpp
++++ b/debuggerd/tombstoned/tombstoned.cpp
+@@ -54,6 +54,9 @@ using android::base::unique_fd;
+ 
+ static InterceptManager* intercept_manager;
+ 
++// Set when the kernel lacks O_TMPFILE (Linux < 3.11).
++static bool g_no_tmpfile = false;
++
+ struct CrashArtifact {
+   unique_fd fd;
+ 
+@@ -140,6 +143,16 @@ class CrashQueue {
+     CrashArtifact result;
+ 
+     result.fd.reset(openat(dir_fd_, ".", O_WRONLY | O_APPEND | O_TMPFILE | O_CLOEXEC, 0660));
++    if (result.fd == -1 && (errno == EOPNOTSUPP || errno == EISDIR || errno == EINVAL)) {
++      // Linux < 3.11 has no O_TMPFILE: use a named temporary file, which
++      // rename_tombstone_fd() renames into place instead of linking it.
++      static unsigned tmp_counter = 0;
++      g_no_tmpfile = true;
++      std::string name = StringPrintf(".tmp_%s%u", file_name_prefix_.c_str(), tmp_counter++);
++      unlinkat(dir_fd_, name.c_str(), 0);
++      result.fd.reset(openat(dir_fd_, name.c_str(),
++                             O_WRONLY | O_APPEND | O_CREAT | O_EXCL | O_CLOEXEC, 0660));
++    }
+     if (result.fd == -1) {
+       PLOG(FATAL) << "failed to create temporary tombstone in " << dir_path_;
+     }
+@@ -412,6 +425,21 @@ static bool rename_tombstone_fd(borrowed_fd fd, borrowed_fd dirfd, const std::st
+ 
+   // This fd is created inside of dirfd in CrashQueue::create_temporary_file.
+   std::string fd_path = StringPrintf("/proc/self/fd/%d", fd.get());
++  if (g_no_tmpfile) {
++    // Named temporary file (no O_TMPFILE): move it into place.
++    char tmp_path[PATH_MAX];
++    ssize_t len = readlink(fd_path.c_str(), tmp_path, sizeof(tmp_path) - 1);
++    if (len == -1) {
++      PLOG(ERROR) << "failed to resolve temporary tombstone for " << path;
++      return false;
++    }
++    tmp_path[len] = '\0';
++    if (renameat(AT_FDCWD, tmp_path, dirfd.get(), path.c_str()) != 0) {
++      PLOG(ERROR) << "failed to rename tombstone to " << path;
++      return false;
++    }
++    return true;
++  }
+   rc = linkat(AT_FDCWD, fd_path.c_str(), dirfd.get(), path.c_str(), AT_SYMLINK_FOLLOW);
+   if (rc != 0) {
+     PLOG(ERROR) << "failed to link tombstone at " << path;

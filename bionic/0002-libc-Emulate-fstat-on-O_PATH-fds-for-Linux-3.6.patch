@@ -1,0 +1,88 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Mon, 16 Nov 2026 13:16:11 +0000
+Subject: [PATCH] libc: Emulate fstat() on O_PATH fds for Linux < 3.6
+
+Older kernels return EBADF for fstat() on O_PATH file descriptors, which
+broke realpath() (open(O_PATH) + fstat()) and with it first stage init's
+fstab handling. Fall back to /proc/self/fd like fchmod() does.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
+Change-Id: I92195d75a1631d0802cc235f711ad17adfa6551c
+---
+ libc/Android.bp       |  1 +
+ libc/SYSCALLS.TXT     |  2 +-
+ libc/bionic/fstat.cpp | 38 ++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 40 insertions(+), 1 deletion(-)
+ create mode 100644 libc/bionic/fstat.cpp
+
+diff --git a/libc/Android.bp b/libc/Android.bp
+index efba83b6e..83b6f46c0 100644
+--- a/libc/Android.bp
++++ b/libc/Android.bp
+@@ -802,6 +802,7 @@ cc_library_static {
+         "bionic/exit.cpp",
+         "bionic/faccessat.cpp",
+         "bionic/fchmod.cpp",
++        "bionic/fstat.cpp",
+         "bionic/fchmodat.cpp",
+         "bionic/fcntl.cpp",
+         "bionic/fdsan.cpp",
+diff --git a/libc/SYSCALLS.TXT b/libc/SYSCALLS.TXT
+index 226ba70a8..324a2c2df 100644
+--- a/libc/SYSCALLS.TXT
++++ b/libc/SYSCALLS.TXT
+@@ -211,7 +211,7 @@ __fstatfs:fstatfs(int, struct statfs*)  lp64
+ __statfs64:statfs64(const char*, size_t, struct statfs*)  lp32
+ __statfs:statfs(const char*, struct statfs*)  lp64
+ 
+-fstat64|fstat:fstat64(int, struct stat*) lp32
++__fstat64:fstat64(int, struct stat*) lp32
+ fstat64|fstat:fstat(int, struct stat*) lp64
+ 
+ # file system
+diff --git a/libc/bionic/fstat.cpp b/libc/bionic/fstat.cpp
+new file mode 100644
+index 000000000..6d8276934
+--- /dev/null
++++ b/libc/bionic/fstat.cpp
+@@ -0,0 +1,38 @@
++/*
++ * Copyright (C) 2026 The LineageOS Project
++ *
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++#include <errno.h>
++#include <fcntl.h>
++#include <sys/stat.h>
++
++#include "private/FdPath.h"
++
++#if !defined(__LP64__)
++
++extern "C" int __fstat64(int, struct stat64*);
++
++// Linux < 3.6 can't fstat() O_PATH file descriptors (EBADF). Emulate it
++// through /proc/self/fd like fchmod() does, as realpath() and others rely
++// on it.
++int fstat64(int fd, struct stat64* st) {
++  int saved_errno = errno;
++  int result = __fstat64(fd, st);
++  if (result == 0 || errno != EBADF) {
++    return result;
++  }
++
++  int fd_flag = fcntl(fd, F_GETFL);
++  if (fd_flag == -1 || (fd_flag & O_PATH) == 0) {
++    errno = EBADF;
++    return -1;
++  }
++
++  errno = saved_errno;
++  return stat64(FdPath(fd).c_str(), st);
++}
++__strong_alias(fstat, fstat64);
++
++#endif

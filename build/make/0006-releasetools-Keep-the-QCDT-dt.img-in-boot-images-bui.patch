@@ -1,0 +1,72 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Mon, 16 Nov 2026 13:31:18 +0000
+Subject: [PATCH] releasetools: Keep the QCDT dt.img in boot images built from
+ target files
+
+The OTA and IMAGES/boot.img are rebuilt from BOOT/, which had no dt, so
+they lost the dt.img and legacy Qualcomm bootloaders refused them. Store
+it as BOOT/dt and pass it with --dt, as LineageOS did up to 11.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
+Change-Id: I17e0e83daf168b9051edca67c55ba2e5485a6058
+---
+ core/Makefile                | 12 ++++++++++--
+ tools/releasetools/common.py |  6 ++++++
+ 2 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/core/Makefile b/core/Makefile
+index 6aa3a208a9..3b3ce2a294 100644
+--- a/core/Makefile
++++ b/core/Makefile
+@@ -1332,8 +1332,10 @@ endif
+ 
+ # Legacy Qualcomm bootloaders take a separate QCDT image (dt.img, built by
+ # vendor/lineage/build/tasks/dt_image.mk) in the boot image header.
+-ifdef INSTALLED_DTIMAGE_TARGET
+-  INTERNAL_BOOTIMAGE_ARGS += --dt $(INSTALLED_DTIMAGE_TARGET)
++# The tasks are included at the end of this file, so use dt_image.mk's
++# condition and path directly.
++ifeq ($(strip $(BOARD_CUSTOM_BOOTIMG_MK))$(strip $(BOARD_KERNEL_SEPARATED_DT)),true)
++  INTERNAL_BOOTIMAGE_ARGS += --dt $(PRODUCT_OUT)/dt.img
+ endif
+ 
+ INTERNAL_BOOTIMAGE_FILES := $(filter-out --%,$(INTERNAL_BOOTIMAGE_ARGS))
+@@ -6330,6 +6332,9 @@ updater_dep += $(built_ota_tools)
+ endif
+ 
+ $(BUILT_TARGET_FILES_DIR): $(updater_dep)
++ifeq ($(strip $(BOARD_CUSTOM_BOOTIMG_MK))$(strip $(BOARD_KERNEL_SEPARATED_DT)),true)
++$(BUILT_TARGET_FILES_DIR): $(PRODUCT_OUT)/dt.img
++endif
+ ifeq ($(TARGET_NO_RECOVERY),true)
+ $(BUILT_TARGET_FILES_DIR): $(TARGET_RECOVERY_FSTAB) \
+     $(filter $(PRODUCT_OUT)/install/%,$(ALL_DEFAULT_INSTALLED_MODULES))
+@@ -6746,6 +6751,9 @@ endif
+ ifdef INSTALLED_DTBIMAGE_TARGET
+ 	cp $(INSTALLED_DTBIMAGE_TARGET) $(zip_root)/BOOT/dtb
+ endif
++ifeq ($(strip $(BOARD_CUSTOM_BOOTIMG_MK))$(strip $(BOARD_KERNEL_SEPARATED_DT)),true)
++	cp $(PRODUCT_OUT)/dt.img $(zip_root)/BOOT/dt
++endif
+ ifdef BOARD_KERNEL_BASE
+ 	echo "$(BOARD_KERNEL_BASE)" > $(zip_root)/BOOT/base
+ endif
+diff --git a/tools/releasetools/common.py b/tools/releasetools/common.py
+index 53eaad2593..608ea96206 100644
+--- a/tools/releasetools/common.py
++++ b/tools/releasetools/common.py
+@@ -1801,6 +1801,12 @@ def _BuildBootableImage(image_name, sourcedir, fs_config_file,
+     cmd.append("--dtb")
+     cmd.append(fn)
+ 
++  # QCDT image of legacy Qualcomm devices (BOARD_KERNEL_SEPARATED_DT)
++  fn = os.path.join(sourcedir, "dt")
++  if os.access(fn, os.F_OK):
++    cmd.append("--dt")
++    cmd.append(fn)
++
+   fn = os.path.join(sourcedir, "cmdline")
+   if os.access(fn, os.F_OK):
+     cmd.append("--cmdline")

@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Mon, 16 Nov 2026 13:02:42 +0000
+Subject: [PATCH] core: Pass the QCDT dt.img to mkbootimg
+
+BOARD_KERNEL_SEPARATED_DT devices got a dt.img from dt_image.mk, but it
+never reached the boot image, which legacy Qualcomm bootloaders refuse
+without it.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
+Change-Id: Ibd8ad55349d29f9a5e3790e62ecbecbd303b7a57
+---
+ core/Makefile | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/core/Makefile b/core/Makefile
+index 42f2ed9de3..6aa3a208a9 100644
+--- a/core/Makefile
++++ b/core/Makefile
+@@ -1330,6 +1330,12 @@ ifdef BOARD_INCLUDE_DTB_IN_BOOTIMG
+ endif
+ endif
+ 
++# Legacy Qualcomm bootloaders take a separate QCDT image (dt.img, built by
++# vendor/lineage/build/tasks/dt_image.mk) in the boot image header.
++ifdef INSTALLED_DTIMAGE_TARGET
++  INTERNAL_BOOTIMAGE_ARGS += --dt $(INSTALLED_DTIMAGE_TARGET)
++endif
++
+ INTERNAL_BOOTIMAGE_FILES := $(filter-out --%,$(INTERNAL_BOOTIMAGE_ARGS))
+ 
+ # kernel cmdline/base/pagesize in boot.

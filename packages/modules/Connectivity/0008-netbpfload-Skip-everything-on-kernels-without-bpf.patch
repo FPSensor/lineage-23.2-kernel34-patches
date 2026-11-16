@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Mon, 16 Nov 2026 14:01:59 +0000
+Subject: [PATCH] netbpfload: Skip everything on kernels without bpf()
+
+Linux < 3.18 has no bpf() syscall at all: bpfGetNextProgId() failed with
+ENOSYS, netbpfload exited 32 and init rebooted (bpfloader-failed). Mark
+the programs as loaded and exit instead.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
+Change-Id: Id75805f0569954f2bf6045cb52769d62a7602bd1
+---
+ bpf/loader/NetBpfLoad.cpp | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/bpf/loader/NetBpfLoad.cpp b/bpf/loader/NetBpfLoad.cpp
+index 1a3bc20bfa..87951f4dc1 100644
+--- a/bpf/loader/NetBpfLoad.cpp
++++ b/bpf/loader/NetBpfLoad.cpp
+@@ -16,6 +16,8 @@
+ 
+ #define LOG_TAG "NetBpfLoad"
+ 
++#include <sys/syscall.h>
++#include <unistd.h>
+ #include <algorithm>
+ #include <arpa/inet.h>
+ #include <bpf/btf.h>
+@@ -1974,6 +1976,18 @@ int main(int argc, char** argv, char * const envp[]) {
+         InitLogging(argv);
+     }
+ 
++    // Kernels without the bpf() syscall at all (Linux < 3.18): there is
++    // nothing to load, so just tell init the programs are loaded.
++    errno = 0;
++    if (syscall(__NR_bpf, 0, nullptr, 0) < 0 && errno == ENOSYS) {
++        ALOGW("This kernel has no bpf() syscall, skipping eBPF.");
++        if (!SetProperty("bpf.progs_loaded", "1")) {
++            ALOGE("Failed to set bpf.progs_loaded property to 1.");
++            return 125;
++        }
++        return 0;
++    }
++
+     if (argc == 2 && !strcmp(argv[1], "done")) {
+         // we're being re-exec'ed from platform bpfloader to 'finalize' things
+         if (!SetProperty("bpf.progs_loaded", "1")) {
