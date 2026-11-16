@@ -8,7 +8,42 @@ These go **on top of**
 [legacy_support_patches](https://github.com/Ultra-Legacy-Hippeastrum/legacy_support_patches)
 (lineage-23.2), which they don't duplicate.
 
-## Usage
+## Building for the Moto G 2013 (falcon) / Moto G LTE (peregrine)
+
+From an empty directory, with the
+[usual LineageOS build requirements](https://wiki.lineageos.org/devices/falcon/build)
+installed:
+
+```sh
+# 1. LineageOS 23.2 source, plus the msm8226 trees
+mkdir lineage-23.2 && cd lineage-23.2
+repo init -u https://github.com/LineageOS/android.git -b lineage-23.2 --git-lfs --no-clone-bundle
+git clone https://github.com/FPSensor/local_manifests_msm8226 -b lineage-23.2 .repo/local_manifests
+repo sync -c -j8 --no-tags --no-clone-bundle
+
+# 2. Patches (git am needs an identity)
+git config --global user.name  >/dev/null || git config --global user.name  "Your Name"
+git config --global user.email >/dev/null || git config --global user.email "you@example.com"
+git clone https://github.com/Ultra-Legacy-Hippeastrum/legacy_support_patches -b lineage-23.2
+git clone https://github.com/FPSensor/lineage-23.2-kernel34-patches -b lineage-23.2
+chmod +x legacy_support_patches/apply.sh
+./legacy_support_patches/apply.sh
+./lineage-23.2-kernel34-patches/apply.sh
+# (no kernel path: the msm8226 kernel tree already carries kernel-3.4/)
+
+# 3. Build (falcon or peregrine)
+source build/envsetup.sh
+lunch lineage_falcon-bp4a-userdebug
+mka bacon
+```
+
+The flashable zip ends up in `out/target/product/falcon/`. Flash it from
+TWRP (`adb sideload`); it only writes `boot` and `system`.
+
+Only one build at a time on machines with little RAM, and keep `repo sync`
+at `-j8` or lower if GitHub starts refusing connections.
+
+## Using the patches on another device
 
 ```sh
 # from the root of a lineage-23.2 tree
@@ -20,7 +55,17 @@ The kernel path is optional; without it only the platform patches are
 applied. The non-A/B OTA patches also need
 [LineageOS/android_system_tools_dtbtool](https://github.com/LineageOS/android_system_tools_dtbtool)
 (`lineage-18.1`) at `system/tools/dtbtool` for devices with
-`BOARD_KERNEL_SEPARATED_DT`.
+`BOARD_KERNEL_SEPARATED_DT`; add it to your local manifest:
+
+```xml
+<project path="system/tools/dtbtool" name="LineageOS/android_system_tools_dtbtool" remote="github" revision="lineage-18.1" />
+```
+
+## Status
+
+falcon reaches the boot animation with adb (root, from early-init); the Java
+side (zygote / system_server) is being brought up. Not daily driver material
+yet.
 
 ## What they fix
 
