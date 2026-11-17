@@ -7,8 +7,6 @@ dexpreoptDisabled() only checks per-module conditions, so with
 WITH_DEXPREOPT := false every app still stored its dex uncompressed
 although nothing gets preopted.
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
 Change-Id: I3cfd64a02d6d14f35a8dad275938cc02c5c49091
 ---
  java/java.go       | 4 +++-

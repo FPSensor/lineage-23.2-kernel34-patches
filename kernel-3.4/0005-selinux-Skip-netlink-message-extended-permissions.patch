@@ -8,9 +8,6 @@ This kernel took the unknown xperms type for an Android M policy,
 switched to its compatibility parsing and failed to load the policy
 with 'avtab: invalid type or class'. Parse them normally and drop them;
 the base nlmsg_* permissions keep applying.
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
 ---
  security/selinux/ss/avtab.c | 8 ++++++++
  security/selinux/ss/avtab.h | 1 +

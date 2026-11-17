@@ -7,8 +7,6 @@ Older kernels return EBADF for fstat() on O_PATH file descriptors, which
 broke realpath() (open(O_PATH) + fstat()) and with it first stage init's
 fstab handling. Fall back to /proc/self/fd like fchmod() does.
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
 Change-Id: I92195d75a1631d0802cc235f711ad17adfa6551c
 ---
  libc/Android.bp       |  1 +

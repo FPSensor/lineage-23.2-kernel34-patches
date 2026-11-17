@@ -6,8 +6,6 @@ Subject: [PATCH] tombstoned: Support kernels without O_TMPFILE
 Linux < 3.11 has no O_TMPFILE, so tombstoned aborted on every crash. Use
 a named temporary file there and rename it into place.
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
 Change-Id: If61c459a2544d2a41831bbb6fe378ec1ab71f280
 ---
  debuggerd/tombstoned/tombstoned.cpp | 28 ++++++++++++++++++++++++++++

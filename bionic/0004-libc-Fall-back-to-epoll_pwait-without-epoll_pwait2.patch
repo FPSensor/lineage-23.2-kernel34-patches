@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Mon, 16 Nov 2026 14:56:45 +0000
+Subject: [PATCH] libc: Fall back to epoll_pwait() without epoll_pwait2()
+
+epoll_pwait2() needs Linux 5.11; BLASTBufferQueue waits for buffer
+releases with it and got ENOSYS on every frame. Round the timeout up to
+milliseconds and use epoll_pwait() instead.
+
+Change-Id: Id891aab8a1958dd86bdf02e627a8511c891a84e2
+---
+ libc/bionic/sys_epoll.cpp | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/libc/bionic/sys_epoll.cpp b/libc/bionic/sys_epoll.cpp
+index be97818da..b53e1a2cc 100644
+--- a/libc/bionic/sys_epoll.cpp
++++ b/libc/bionic/sys_epoll.cpp
+@@ -26,6 +26,7 @@
+  * SUCH DAMAGE.
+  */
+ 
++#include <limits.h>
+ #include <errno.h>
+ #include <sys/epoll.h>
+ 
+@@ -80,7 +81,20 @@ int epoll_pwait2_64(int fd, epoll_event* events, int max_events, const timespec*
+     kts_ptr = &kts;
+   }
+ #endif
+-  return __epoll_pwait2(fd, events, max_events, kts_ptr, ss, sizeof(*ss));
++  int saved_errno = errno;
++  int result = __epoll_pwait2(fd, events, max_events, kts_ptr, ss, sizeof(*ss));
++  if (result != -1 || errno != ENOSYS) return result;
++
++  // Linux < 5.11 has no epoll_pwait2(): use epoll_pwait() with the timeout
++  // rounded up to milliseconds.
++  errno = saved_errno;
++  int timeout_ms = -1;
++  if (timeout) {
++    long long ms = static_cast<long long>(timeout->tv_sec) * 1000 +
++                   (timeout->tv_nsec + 999999) / 1000000;
++    timeout_ms = ms > INT_MAX ? INT_MAX : static_cast<int>(ms);
++  }
++  return __epoll_pwait(fd, events, max_events, timeout_ms, ss, sizeof(*ss));
+ }
+ 
+ int epoll_wait(int fd, struct epoll_event* events, int max_events, int timeout) {

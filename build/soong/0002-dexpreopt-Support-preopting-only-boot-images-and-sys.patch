@@ -1,0 +1,64 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Mon, 16 Nov 2026 14:58:26 +0000
+Subject: [PATCH] dexpreopt: Support preopting only boot images and
+ system_server
+
+WITH_DEXPREOPT_BOOT_IMG_AND_SYSTEM_SERVER_ONLY no longer did anything.
+Make it skip every module but the system_server jars again (the boot
+images are built separately), and keep the dex of the skipped apps
+compressed.
+
+Change-Id: If4026df7716f77a93f8b3df2deaabf4d7ec396c2
+---
+ dexpreopt/config.go    | 1 +
+ dexpreopt/dexpreopt.go | 7 +++++++
+ java/java.go           | 5 ++++-
+ 3 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/dexpreopt/config.go b/dexpreopt/config.go
+index f5a6778c2..2918da4b1 100644
+--- a/dexpreopt/config.go
++++ b/dexpreopt/config.go
+@@ -33,6 +33,7 @@ type GlobalConfig struct {
+ 	DisablePreoptModules    []string // modules with preopt disabled by product-specific config
+ 
+ 	OnlyPreoptArtBootImage bool // only preopt jars in the ART boot image
++	OnlyPreoptBootImageAndSystemServer bool // only preopt the boot images and system_server jars
+ 
+ 	PreoptWithUpdatableBcp bool // If updatable boot jars are included in dexpreopt or not.
+ 
+diff --git a/dexpreopt/dexpreopt.go b/dexpreopt/dexpreopt.go
+index bd5d65aab..67aeddcc8 100644
+--- a/dexpreopt/dexpreopt.go
++++ b/dexpreopt/dexpreopt.go
+@@ -132,6 +132,13 @@ func dexpreoptDisabled(ctx android.PathContext, global *GlobalConfig, module *Mo
+ 		return true
+ 	}
+ 
++	// Low storage devices: keep the boot images and system_server compiled,
++	// leave apps to the JIT.
++	if global.OnlyPreoptBootImageAndSystemServer &&
++		!global.AllSystemServerJars(ctx).ContainsJar(module.Name) {
++		return true
++	}
++
+ 	return false
+ }
+ 
+diff --git a/java/java.go b/java/java.go
+index 01b254b8d..f3c36d329 100644
+--- a/java/java.go
++++ b/java/java.go
+@@ -956,7 +956,10 @@ func shouldUncompressDex(ctx android.ModuleContext, libName string, dexpreopter
+ 	// Store uncompressed dex files that are preopted on /system or /system_other.
+ 	// With dexpreopt disabled globally (WITH_DEXPREOPT := false) nothing is
+ 	// preopted, so keep them compressed.
+-	if !dexpreopter.dexpreoptDisabled(ctx, libName) && !dexpreopt.GetGlobalConfig(ctx).DisablePreopt {
++	global := dexpreopt.GetGlobalConfig(ctx)
++	if !dexpreopter.dexpreoptDisabled(ctx, libName) && !global.DisablePreopt &&
++		!(global.OnlyPreoptBootImageAndSystemServer &&
++			!global.AllSystemServerJars(ctx).ContainsJar(libName)) {
+ 		return true
+ 	}
+ 

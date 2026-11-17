@@ -7,8 +7,6 @@ Kernels older than 4.20 don't support TXN_SECURITY_CTX, so every
 incoming transaction lacked a context and servicemanager aborted, taking
 vold and the whole boot down. Fall back to getpidcon() there.
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
 Change-Id: Ie8880794f9f6882d54c040e78ac1df14de38d5f8
 ---
  cmds/servicemanager/Access.cpp | 5 ++---

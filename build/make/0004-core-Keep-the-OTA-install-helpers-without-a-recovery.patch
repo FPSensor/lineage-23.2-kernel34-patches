@@ -7,8 +7,6 @@ They were only copied to INSTALL/ together with the recovery files, so
 non-A/B OTAs of TARGET_NO_RECOVERY devices lacked install/ and aborted
 at set_metadata_recursive.
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
 Change-Id: Ie4a659f15e55327f84012b5c9c529aeabe4c964a
 ---
  core/Makefile | 7 ++++++-

@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Mon, 16 Nov 2026 15:07:59 +0000
+Subject: [PATCH] dex_preopt_odex_install: Skip the uses-libraries check for
+ boot image only preopt
+
+Like WITH_DEXPREOPT_ART_BOOT_IMG_ONLY, apps and standalone jars aren't
+preopted with WITH_DEXPREOPT_BOOT_IMG_AND_SYSTEM_SERVER_ONLY.
+
+Change-Id: Ibcb523460fdd6242001c890e32e84d92700dfd51
+---
+ core/dex_preopt_odex_install.mk | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/core/dex_preopt_odex_install.mk b/core/dex_preopt_odex_install.mk
+index b87be1ca79..c35bfa6768 100644
+--- a/core/dex_preopt_odex_install.mk
++++ b/core/dex_preopt_odex_install.mk
+@@ -232,6 +232,8 @@ ifneq (true,$(WITH_DEXPREOPT))
+   LOCAL_ENFORCE_USES_LIBRARIES := false
+ else ifeq (true,$(WITH_DEXPREOPT_ART_BOOT_IMG_ONLY))
+   LOCAL_ENFORCE_USES_LIBRARIES := false
++else ifeq (true,$(WITH_DEXPREOPT_BOOT_IMG_AND_SYSTEM_SERVER_ONLY))
++  LOCAL_ENFORCE_USES_LIBRARIES := false
+ endif
+ 
+ # Verify LOCAL_USES_LIBRARIES/LOCAL_OPTIONAL_USES_LIBRARIES against the manifest.

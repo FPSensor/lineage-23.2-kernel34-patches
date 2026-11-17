@@ -1,0 +1,23 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Mon, 16 Nov 2026 14:58:27 +0000
+Subject: [PATCH] dex_preopt_config: Pass
+ WITH_DEXPREOPT_BOOT_IMG_AND_SYSTEM_SERVER_ONLY
+
+Change-Id: I9804f26776182529fe44ccd6df07ec33d1c16514
+---
+ core/dex_preopt_config.mk | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/core/dex_preopt_config.mk b/core/dex_preopt_config.mk
+index 596dfe7443..9e033604f7 100644
+--- a/core/dex_preopt_config.mk
++++ b/core/dex_preopt_config.mk
+@@ -86,6 +86,7 @@ ifeq ($(WRITE_SOONG_VARIABLES),true)
+   $(call add_json_bool, DisablePreoptBootImages,                 $(call invert_bool,$(ENABLE_PREOPT_BOOT_IMAGES)))
+   $(call add_json_list, DisablePreoptModules,                    $(DEXPREOPT_DISABLED_MODULES))
+   $(call add_json_bool, OnlyPreoptArtBootImage            ,      $(filter true,$(WITH_DEXPREOPT_ART_BOOT_IMG_ONLY)))
++  $(call add_json_bool, OnlyPreoptBootImageAndSystemServer,      $(filter true,$(WITH_DEXPREOPT_BOOT_IMG_AND_SYSTEM_SERVER_ONLY)))
+   $(call add_json_bool, PreoptWithUpdatableBcp,                  $(filter true,$(DEX_PREOPT_WITH_UPDATABLE_BCP)))
+   $(call add_json_bool, DontUncompressPrivAppsDex,               $(filter true,$(DONT_UNCOMPRESS_PRIV_APPS_DEXS)))
+   $(call add_json_list, ModulesLoadedByPrivilegedModules,        $(PRODUCT_LOADED_BY_PRIVILEGED_MODULES))

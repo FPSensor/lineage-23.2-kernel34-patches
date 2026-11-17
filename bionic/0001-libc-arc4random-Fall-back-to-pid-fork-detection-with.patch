@@ -8,8 +8,6 @@ MADV_WIPEONFORK needs Linux 4.14. On older kernels madvise() returns
 EINVAL and every process using arc4random aborted. Detect forks by pid
 there instead, as OpenBSD's arc4random_linux.h does.
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
 Change-Id: Id9cb3cb81c5ab904e3796daaf0cbe61ac8c3c13d
 ---
  .../android/include/arc4random.h              | 24 +++++++++++++++++--

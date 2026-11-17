@@ -1,0 +1,47 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Mon, 16 Nov 2026 14:41:56 +0000
+Subject: [PATCH] jit: Fall back to ashmem for the private region without memfd
+
+Linux < 3.17 has no memfd_create(), so every forked process (starting
+with system_server) aborted with 'Failed to initialize dual view JIT'.
+Use ashmem there, like the zygote region already does: it can be mapped
+twice just the same.
+
+Change-Id: I9a5fc7fca5fae790ff04b281a20ff146acda0584
+---
+ runtime/jit/jit_memory_region.cc | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/runtime/jit/jit_memory_region.cc b/runtime/jit/jit_memory_region.cc
+index 492b93e673..0e5fe2255f 100644
+--- a/runtime/jit/jit_memory_region.cc
++++ b/runtime/jit/jit_memory_region.cc
+@@ -83,6 +83,18 @@ bool JitMemoryRegion::Initialize(size_t initial_capacity,
+   } else {
+     // Bionic supports memfd_create, but the call may fail on older kernels.
+     mem_fd = unique_fd(art::memfd_create("jit-cache", /* flags= */ 0));
++    bool is_ashmem = false;
++    if (mem_fd.get() < 0 && errno == ENOSYS) {
++      // Linux < 3.17 has no memfd: ashmem is shared memory that can be mapped
++      // twice as well, like the zygote region already falls back to.
++      int fd = -1;
++      if (PaletteAshmemCreateRegion("jit-cache", capacity, &fd) == PALETTE_STATUS_OK) {
++        mem_fd.reset(fd);
++        is_ashmem = true;
++      } else {
++        errno = ENOSYS;
++      }
++    }
+     if (mem_fd.get() < 0) {
+       std::ostringstream oss;
+       oss << "Failed to initialize dual view JIT. memfd_create() error: " << strerror(errno);
+@@ -93,7 +105,7 @@ bool JitMemoryRegion::Initialize(size_t initial_capacity,
+         return false;
+       }
+       VLOG(jit) << oss.str();
+-    } else if (ftruncate(mem_fd, capacity) != 0) {
++    } else if (!is_ashmem && ftruncate(mem_fd, capacity) != 0) {
+       std::ostringstream oss;
+       oss << "Failed to initialize memory file: " << strerror(errno);
+       *error_msg = oss.str();

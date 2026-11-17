@@ -7,8 +7,6 @@ BOARD_KERNEL_SEPARATED_DT devices got a dt.img from dt_image.mk, but it
 never reached the boot image, which legacy Qualcomm bootloaders refuse
 without it.
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
 Change-Id: Ibd8ad55349d29f9a5e3790e62ecbecbd303b7a57
 ---
  core/Makefile | 6 ++++++

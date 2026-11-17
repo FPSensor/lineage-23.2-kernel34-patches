@@ -8,8 +8,6 @@ rename() and renameat() are built on renameat2(), which needs Linux
 derive_classpath (and so zygote), installd and vold. Without flags,
 renameat() does the same.
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
 Change-Id: Ie3ec9f56d7adc9b3e19aabb200f8550a9dc062bc
 ---
  libc/bionic/rename.cpp | 19 +++++++++++++++++--

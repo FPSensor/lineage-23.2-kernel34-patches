@@ -7,8 +7,6 @@ Subject: [PATCH] releasetools: Build full non-A/B OTAs without a recovery
 With the recovery fstab available, skip the recovery image and the
 recovery patch check; the package is installed from a custom recovery.
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
 Change-Id: I08f7e1a7ba55225f992daaa6512eac9d9cb346ab
 ---
  tools/releasetools/non_ab_ota.py | 18 ++++++++++++------

@@ -10,9 +10,6 @@ the endpoint files (Linux 3.15). Without them the device showed up as
 'offline'. Take f_fs.c from acroreiser's lineage-23.2 hammerhead 3.4
 kernel, which carries that backport, and stub the device callbacks its
 android.c provides.
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
 ---
  drivers/usb/gadget/android.c |  11 +
  drivers/usb/gadget/f_fs.c    | 524 +++++++++++++++++++++++++++--------

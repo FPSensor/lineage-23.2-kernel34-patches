@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Mon, 16 Nov 2026 15:17:20 +0000
+Subject: [PATCH] dex_preopt_odex_install: Honor
+ WITH_DEXPREOPT_BOOT_IMG_AND_SYSTEM_SERVER_ONLY
+
+Make still expected odex files for modules Soong no longer preopts with
+this option, like the prebuilt qcrilhook jar.
+
+Change-Id: I68a0b3122fd2fd87b9cd53831e4ea1ec6467d33d
+---
+ core/dex_preopt_odex_install.mk | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/core/dex_preopt_odex_install.mk b/core/dex_preopt_odex_install.mk
+index c35bfa6768..8d915c8f1c 100644
+--- a/core/dex_preopt_odex_install.mk
++++ b/core/dex_preopt_odex_install.mk
+@@ -64,6 +64,13 @@ ifeq (true,$(WITH_DEXPREOPT_ART_BOOT_IMG_ONLY))
+   LOCAL_DEX_PREOPT :=
+ endif
+ 
++# Only the boot images and system_server jars are preopted (matches Soong).
++ifeq (true,$(WITH_DEXPREOPT_BOOT_IMG_AND_SYSTEM_SERVER_ONLY))
++  ifeq (,$(filter %:$(LOCAL_MODULE),$(PRODUCT_SYSTEM_SERVER_JARS) $(PRODUCT_STANDALONE_SYSTEM_SERVER_JARS)))
++    LOCAL_DEX_PREOPT :=
++  endif
++endif
++
+ my_process_profile :=
+ my_profile_is_text_listing :=
+ 

@@ -63,9 +63,9 @@ applied. The non-A/B OTA patches also need
 
 ## Status
 
-falcon reaches the boot animation with adb (root, from early-init); the Java
-side (zygote / system_server) is being brought up. Not daily driver material
-yet.
+falcon boots to the setup wizard and Settings, with adb (root, from
+early-init). The UI is still very slow and several things are missing (radio,
+camera, compass...). Not daily driver material yet.
 
 ## What they fix
 
@@ -79,6 +79,10 @@ yet.
 | system/core | tombstoned uses `O_TMPFILE` (3.11) and aborts on every crash | named temporary file + rename |
 | frameworks/native, system/hwservicemanager | servicemanagers abort without binder security contexts (`TXN_SECURITY_CTX`, 4.20) | fall back to `getpidcon()` |
 | packages/modules/Connectivity | `netbpfload` fails with no `bpf()` syscall at all (3.18) and init reboots | mark the programs loaded and exit |
+| packages/modules/Connectivity | `ClatCoordinator` aborts system_server when `/sys/fs/bpf` doesn't exist | skip the clat BPF checks there |
+| bionic | `epoll_pwait2()` (5.11) fails on every frame in BLASTBufferQueue | fall back to `epoll_pwait()` with the timeout rounded up to ms |
+| art | the JIT of forked processes needs `memfd_create()` (3.17): system_server aborts | use ashmem, like the zygote region already does |
+| system/security | keystore2 rejects every call without a binder `calling_sid` | look the caller context up with `getpidcon()` instead |
 
 ### Building and packaging
 
@@ -87,6 +91,7 @@ yet.
 | build/make | Non-A/B OTAs for devices without a recovery partition (fstab and install helpers in the target files, `cache_size` without a cache image) |
 | build/make | Pass the QCDT `dt.img` (`BOARD_KERNEL_SEPARATED_DT`) to the boot image, also when releasetools rebuilds it |
 | build/soong | Keep dex compressed when dexpreopt is disabled globally (space) |
+| build/soong, build/make | Bring back `WITH_DEXPREOPT_BOOT_IMG_AND_SYSTEM_SERVER_ONLY`: preopt the boot images and system_server only (no boot image means the whole framework runs interpreted and system_server trips the watchdog) |
 
 ### Kernel (`kernel-3.4/`, generic 3.4 patches)
 
@@ -128,3 +133,10 @@ Not patches, but needed in the device tree on these kernels:
 - No early mount fstab in the device tree if the ramdisk fstab differs.
 - IRadio < 1.4 is rejected by telephony: wrap the RIL (see LineageOS'
   hammerhead radio 1.4 service).
+- `CONFIG_IKCONFIG_PROC=y` (`android.os.Debug` reads `/proc/config.gz`).
+- A `/metadata` partition (aconfigd keeps the feature flags there; without it
+  flagged permissions disappear and AppOps kills system_server). An unused
+  cache partition works.
+- Legacy keymaster (0.x/3.0) has no AES: use AOSP's software keymaster 4.1 and
+  gatekeeper, or LockSettings kills system_server.
+- Legacy HALs must be installed to `/vendor/lib/hw` (`LOCAL_VENDOR_MODULE`).

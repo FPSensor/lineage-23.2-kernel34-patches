@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Mon, 16 Nov 2026 15:09:13 +0000
+Subject: [PATCH] ClatCoordinator: Skip the BPF checks without /sys/fs/bpf
+
+Kernels without bpf() have no bpffs: verifyClatPerms() aborted
+system_server while loading libservice-connectivity.
+
+Change-Id: If95e86bb6ab8ca7445a93eb878ed8b3ca1a1c799
+---
+ .../com_android_server_connectivity_ClatCoordinator.cpp   | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/service/jni/com_android_server_connectivity_ClatCoordinator.cpp b/service/jni/com_android_server_connectivity_ClatCoordinator.cpp
+index 70991ebad3..1546909a0f 100644
+--- a/service/jni/com_android_server_connectivity_ClatCoordinator.cpp
++++ b/service/jni/com_android_server_connectivity_ClatCoordinator.cpp
+@@ -113,6 +113,14 @@ static void verifyClatPerms() {
+     // Clat BPF was only mainlined during T.
+     if (!modules::sdklevel::IsAtLeastT()) return;
+ 
++    // Kernels without bpf() (Linux < 3.18) have no /sys/fs/bpf and no clat
++    // BPF programs at all: there is nothing more to verify.
++    if (access("/sys/fs/bpf", F_OK) && errno == ENOENT) {
++        ALOGW("No /sys/fs/bpf, skipping the clat BPF checks");
++        if (fatal) abort();
++        return;
++    }
++
+     V("/sys/fs/bpf", S_IFDIR|S_ISVTX|0777, ROOT, ROOT, "fs_bpf", DIR);
+ 
+     V("/sys/fs/bpf/net_shared", S_IFDIR|01777, ROOT, ROOT, "fs_bpf_net_shared", DIR);

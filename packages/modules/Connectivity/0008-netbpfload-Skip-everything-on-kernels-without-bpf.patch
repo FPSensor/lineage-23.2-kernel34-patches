@@ -7,8 +7,6 @@ Linux < 3.18 has no bpf() syscall at all: bpfGetNextProgId() failed with
 ENOSYS, netbpfload exited 32 and init rebooted (bpfloader-failed). Mark
 the programs as loaded and exit instead.
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
 Change-Id: Id75805f0569954f2bf6045cb52769d62a7602bd1
 ---
  bpf/loader/NetBpfLoad.cpp | 14 ++++++++++++++

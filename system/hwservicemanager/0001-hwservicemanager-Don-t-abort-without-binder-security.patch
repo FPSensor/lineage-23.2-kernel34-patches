@@ -7,8 +7,6 @@ Subject: [PATCH] hwservicemanager: Don't abort without binder security
 Kernels older than 4.20 don't support TXN_SECURITY_CTX. Fall back to
 getpidcon() instead of aborting.
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
 Change-Id: If51b0eb3a0fd2b31f9ed31f0ea48506535c1669f
 ---
  ServiceManager.cpp | 4 ++--

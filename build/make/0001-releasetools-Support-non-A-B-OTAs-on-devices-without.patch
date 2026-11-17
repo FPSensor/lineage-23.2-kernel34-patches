@@ -9,8 +9,6 @@ devices, but it only reached the target files through the recovery
 image. With TARGET_NO_RECOVERY, store TARGET_RECOVERY_FSTAB as
 META/recovery.fstab, load it from there, and build the OTA package.
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_011zBcPW2nw54WW3Y9cSJSXw
 Change-Id: I6ebd63a9d7c2c2db16f0c6a4699ccbff04a5e0b7
 ---
  core/Makefile                | 11 ++++++++++-
