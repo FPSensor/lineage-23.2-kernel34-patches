@@ -1,0 +1,50 @@
+From 7b94ed7a5f74f7372680dbc1d771adb1a94b5460 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Wed, 18 Nov 2026 01:16:32 +0000
+Subject: [PATCH] dexpreopt: Preopt the speed apps with the boot image only
+ knob
+
+WITH_DEXPREOPT_BOOT_IMG_AND_SYSTEM_SERVER_ONLY left SystemUI and the
+launcher to the JIT too, and on a 1 GB Cortex-A7 device that's most of the
+UI's lag. PRODUCT_DEXPREOPT_SPEED_APPS are preopted with it now.
+
+Change-Id: I3c929eaaa6c36fae03b3898239c673a108d804f3
+---
+ dexpreopt/dexpreopt.go | 5 +++--
+ java/java.go           | 3 ++-
+ 2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/dexpreopt/dexpreopt.go b/dexpreopt/dexpreopt.go
+index 67aeddcc8..6153c72a1 100644
+--- a/dexpreopt/dexpreopt.go
++++ b/dexpreopt/dexpreopt.go
+@@ -133,9 +133,10 @@ func dexpreoptDisabled(ctx android.PathContext, global *GlobalConfig, module *Mo
+ 	}
+ 
+ 	// Low storage devices: keep the boot images and system_server compiled,
+-	// leave apps to the JIT.
++	// leave apps to the JIT (except PRODUCT_DEXPREOPT_SPEED_APPS).
+ 	if global.OnlyPreoptBootImageAndSystemServer &&
+-		!global.AllSystemServerJars(ctx).ContainsJar(module.Name) {
++		!global.AllSystemServerJars(ctx).ContainsJar(module.Name) &&
++		!android.InList(module.Name, global.SpeedApps) {
+ 		return true
+ 	}
+ 
+diff --git a/java/java.go b/java/java.go
+index f3c36d329..5d00c28ce 100644
+--- a/java/java.go
++++ b/java/java.go
+@@ -959,7 +959,8 @@ func shouldUncompressDex(ctx android.ModuleContext, libName string, dexpreopter
+ 	global := dexpreopt.GetGlobalConfig(ctx)
+ 	if !dexpreopter.dexpreoptDisabled(ctx, libName) && !global.DisablePreopt &&
+ 		!(global.OnlyPreoptBootImageAndSystemServer &&
+-			!global.AllSystemServerJars(ctx).ContainsJar(libName)) {
++			!global.AllSystemServerJars(ctx).ContainsJar(libName) &&
++			!android.InList(libName, global.SpeedApps)) {
+ 		return true
+ 	}
+ 
+-- 
+2.43.0
+

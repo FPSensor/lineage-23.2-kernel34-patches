@@ -83,6 +83,7 @@ camera, compass...). Not daily driver material yet.
 | bionic | `epoll_pwait2()` (5.11) fails on every frame in BLASTBufferQueue | fall back to `epoll_pwait()` with the timeout rounded up to ms |
 | art | the JIT of forked processes needs `memfd_create()` (3.17): system_server aborts | use ashmem, like the zygote region already does |
 | system/security | keystore2 rejects every call without a binder `calling_sid` | look the caller context up with `getpidcon()` instead |
+| system/sepolicy | the `getpidcon()` fallbacks need to read `/proc/<pid>/attr/current` | let servicemanager, hwservicemanager, vndservicemanager and keystore2 read it |
 
 ### Building and packaging
 
@@ -92,6 +93,7 @@ camera, compass...). Not daily driver material yet.
 | build/make | Pass the QCDT `dt.img` (`BOARD_KERNEL_SEPARATED_DT`) to the boot image, also when releasetools rebuilds it |
 | build/soong | Keep dex compressed when dexpreopt is disabled globally (space) |
 | build/soong, build/make | Bring back `WITH_DEXPREOPT_BOOT_IMG_AND_SYSTEM_SERVER_ONLY`: preopt the boot images and system_server only (no boot image means the whole framework runs interpreted and system_server trips the watchdog) |
+| build/soong, build/make | With that knob, still preopt `PRODUCT_DEXPREOPT_SPEED_APPS` (SystemUI, launcher, Settings): left to the JIT they're most of the UI lag on a 1 GB Cortex-A7 |
 
 ### Kernel (`kernel-3.4/`, generic 3.4 patches)
 
@@ -140,3 +142,8 @@ Not patches, but needed in the device tree on these kernels:
 - Legacy keymaster (0.x/3.0) has no AES: use AOSP's software keymaster 4.1 and
   gatekeeper, or LockSettings kills system_server.
 - Legacy HALs must be installed to `/vendor/lib/hw` (`LOCAL_VENDOR_MODULE`).
+- 1 GB of RAM: `ro.config.low_ram=true`, AOSP's `phone-xhdpi-1024` heap
+  (`heapgrowthlimit=96m`), a bigger zram and no blur. Without them zram fills
+  up, nothing gets killed and the UI drops to ~1 FPS.
+- Preopt the UI apps with `PRODUCT_DEXPREOPT_SPEED_APPS` (the launcher module
+  is `Launcher3QuickStep` in 23.2, not `TrebuchetQuickStep`).

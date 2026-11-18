@@ -1,0 +1,36 @@
+From b9f8b025502fa1aac16e3d9ccaed78a7c791d779 Mon Sep 17 00:00:00 2001
+From: FPSensor <gkartyt@gmail.com>
+Date: Wed, 18 Nov 2026 01:16:32 +0000
+Subject: [PATCH] dex_preopt_odex_install: Preopt the speed apps with the boot
+ image only knob
+
+Matches Soong.
+
+Change-Id: I98ea68cbd1bd07c9ac09ea49162c7250d49a8d7a
+---
+ core/dex_preopt_odex_install.mk | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/core/dex_preopt_odex_install.mk b/core/dex_preopt_odex_install.mk
+index 8d915c8f1c..2fd7923a34 100644
+--- a/core/dex_preopt_odex_install.mk
++++ b/core/dex_preopt_odex_install.mk
+@@ -64,10 +64,13 @@ ifeq (true,$(WITH_DEXPREOPT_ART_BOOT_IMG_ONLY))
+   LOCAL_DEX_PREOPT :=
+ endif
+ 
+-# Only the boot images and system_server jars are preopted (matches Soong).
++# Only the boot images, system_server jars and PRODUCT_DEXPREOPT_SPEED_APPS
++# are preopted (matches Soong).
+ ifeq (true,$(WITH_DEXPREOPT_BOOT_IMG_AND_SYSTEM_SERVER_ONLY))
+   ifeq (,$(filter %:$(LOCAL_MODULE),$(PRODUCT_SYSTEM_SERVER_JARS) $(PRODUCT_STANDALONE_SYSTEM_SERVER_JARS)))
+-    LOCAL_DEX_PREOPT :=
++    ifeq (,$(filter $(LOCAL_MODULE),$(PRODUCT_DEXPREOPT_SPEED_APPS)))
++      LOCAL_DEX_PREOPT :=
++    endif
+   endif
+ endif
+ 
+-- 
+2.43.0
+
